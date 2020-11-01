@@ -1,0 +1,95 @@
+---
+title: "HW7"
+output: html_notebook
+author: Rebecca Housey 
+date: 26 Septemnber 2020
+---
+
+Read the two data sets, and call them one and two. Then putting them into their own data frame 'train' and 'test'. That way, the data can be cleaned. 
+
+```{r}
+library(dplyr)
+library(kknn)
+one <- read.csv("http://www.cse.lehigh.edu/~brian/course/2020/datascience/TitanicTrain.csv")
+two <- read.csv("http://www.cse.lehigh.edu/~brian/course/2020/datascience/TitanicTest.csv")
+train <- data.frame(one)
+test <- data.frame(two)
+```
+
+Cleaning the data, since there are many NA values for age, I took the mean of the ages and replaced it for every NA value to get the most accurate results (instead of just deleting). I deleted the columns name, home.dest, cabin, body, boat, and ticket from the data frames because a lot of them included no values and were just irrelevant. I made survived, pclass, sex, and embarked factors. They have the most relevant data for what we are calculating and the most accurate. 
+
+```{r}
+str(train)
+str(test)
+
+train$age[is.na(train$age)]= 29.9
+test$age[is.na(test$age)]= 29.9
+
+train <- train %>% select(-c(name, home.dest, cabin, body, boat, ticket))
+test <- test %>% select(-c(name, home.dest, cabin, body,boat, ticket))
+
+for(i in c("survived", "pclass", "sex", "embarked"))
+  train[,i] = as.factor(train[,i])
+for(i in c("survived", "pclass", "sex", "embarked"))
+  test[,i] = as.factor(test[,i])
+log.train <- train
+log.test <- test
+kknn.train <- train
+kknn.test <- test
+str(test)
+str(train)
+```
+
+LOGISTIC REGRESSION
+a) Building The Model
+```{r}
+log.model <- glm(formula = survived ~ pclass + sex + age + embarked, family = binomial(link = "logit"), data = log.train)
+summary(log.model)
+```
+b) Get predictions using the model 
+```{r}
+l = step(log.model, direction = "both")
+train$score <- predict(l, newdata = log.train, type = "response")
+head(log.train$score)
+tail(log.train$score)
+train$prediction <- ifelse(train$score >= .6, 1, 0)
+table(factor(train$prediction), factor(train$survived))
+
+log.test$score<-predict(l, log.test, type = "response")
+log.test$predicted<-ifelse(log.test$score >= 0.6, 1, 0)
+table(factor(log.test$predicted), factor(log.test$survived))
+log.predict <- predict(log.model, log.test, type = "response")
+
+```
+c) Confusion Matrix 
+```{r} 
+log.matrix = table(log.test$survived, log.predict > 0.60)
+log.matrix
+```
+d) Display accuracy
+```{r}
+log.acc = sum(diag(log.matrix))/sum(log.matrix)
+log.acc.percent <- (log.acc*100)
+paste("Accuracy of logistic regression is :  ", log.acc, "%", sep = "")
+```
+
+K NEAREST NEIGHBOR
+  a) building model 
+```{r}
+k <- kknn(survived ~., kknn.train, kknn.test, distance = 8)
+summary(knn.model)
+fit <- fitted(knn.model)
+summary(fit)
+```
+  c) Confusion Matrix 
+```{r}
+table <- table(kknn.test$survived, fit)
+```
+  d) Getting the accuracy
+```{r}
+k.acc <- sum(diag(table))/sum(table) #overall accuracy
+k.acc.percent <- (k.acc*100)
+paste("Accuracy using kknn: ", k.acc.percent, "%", sep = "")
+```
+
+
